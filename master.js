@@ -122,7 +122,6 @@ function processClick(event) {
   
 function drawBoard(){
 	var canvas = document.getElementById("myCanvas");
-	canvas.style.top=500+"px";
 	
 	var c = canvas.getContext("2d");
 	c.beginPath();
