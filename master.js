@@ -40,7 +40,7 @@ function processClick(event) {
 	var y = event.clientY;
 
 	if(x<canvasX||y<canvasX||x>(canvasX + BOARD_WIDTH)||y>(canvasY+BOARD_HEIGHT)){
-		//deselect piece
+		//Outside Board: deselect piece
 		mouseX=mouseY=-1;
 	}
 	else if(mouseX==-1){
@@ -65,6 +65,7 @@ function processClick(event) {
 		}
 		
 		var moves = generateMoves(board,r,c,turn);
+		console.log(moves);
 		if(moves.has(str)){
 			//should be move
 			var move = str.split('-');
@@ -99,21 +100,67 @@ function processClick(event) {
 				}
 
 			}
-			else if(false){
+			else if(toupper(board[r][c]) == 'P' && epR != -1 && epC != -1 && toC == epC && toR == epR - turn && r == epR && Math.abs(c - epC) == 1 && inBound(r, c, toR, toC)){
 				//En passant
+	
+				basicMove(board,r,c,toR,toC);
+				board[epR][epC] = '.';
+				epR = -1;
+					epC = -1;
 
 			}
 			else{
+				//Normal move
 				updateCastleStatus(r,c);
+				if (toupper(board[r][c]) == 'P' && Math.abs(r - toR) == 2)
+				{
+					epR = toR;
+					epC = toC;
+				}
+				else
+				{
+					epR = -1;
+					epC = -1;
+				}
 				basicMove(board,r,c,toR,toC);
 				
 			}
-			
+			var ending = outcome(board,-1*turn);
+		if (ending == 1)
+		{
+			if (turn == -1)
+			{
+
+				console.log("BLACK WINS");
+			}
+			else
+			{
+
+				console.log("WHITE WINS");
+
+			}
+
 		}
-		turn*=-1;
+		else if (ending == 2)
+		{
+
+			console.log("STALEMATE");
+
+		}
+		else if (ending == 3)
+		{
+			console.log("DRAW BY INSUFFICIENT MATERIAL");
+
+		}
+			turn*=-1;
+	
 		drawBoard();
 		drawPieces();
 		mouseX=mouseY=-1;
+		//OUTCOME
+		
+		
+		}
 		
 	}
 
@@ -352,18 +399,19 @@ function initialize()
             [ 'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p' ],
             [ 'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r' ]
                 ];
-
+/*
 				board = [
 					['R', '.', '.', '.', 'K', '.', '.', 'R'] ,
-					['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'] ,
+					['P', 'P', 'P', '.', 'P', 'b', 'P', 'P'] ,
 					['.','.','.','.','.','.','.','.'],
 					['.','.','.','.','.','.','.','.'],
 					['.','.','.','.','.','.','.','.'],
 					['.','.','.','.','.','.','.','.'],
-					[ 'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p' ],
-					[ 'r', '.', '.', '.', 'k', '.', '.', 'r' ]
+					[ 'p', 'p', '.', '.', 'p', '.', '.', 'p' ],
+					[ 'r', '.', '.', '.', 'k', 'q', '.', 'r' ]
 						];
-	
+
+	*/
 		//*/
 		/*
 			char classic[MAX_D][MAX_D] = {
@@ -451,8 +499,15 @@ function playableKing(a,r,  c,  toR,  toC)
 		
 		if (r + ri[i] == toR && c + ci[i] == toC && (a[toR][toC] == '.' || b))
 		{
-			if(Math.abs(ci[i]>1)){
+			if(Math.abs(ci[i])>1){
+				var p=1;
+				if(a[r][c]=='K'){
+					p=-1;
+				}
 				var dir = ci[i];
+				if(squareAttacked(a,r,c+dir/2,p)){
+					return false;
+				}
 					for(var col=c+dir/2; col!=0&&col!=(COL-1);col+=dir/2){
 						if(a[r][col]!='.'){
 							return false;
@@ -683,7 +738,7 @@ function playablePawn(a, r,  c,  toR,  toC)
 	}
 	if ((toC == (c - 1) || toC == (c + 1)) && toR == r - i)
 	{
-		return a[toR][toC] != '.' && b;
+		return (a[toR][toC] != '.' && b) || (epR != -1 && epC != -1 && toC == epC && toR == epR - turn && r == epR && Math.abs(c - epC) == 1 && inBound(r, c, toR, toC));
 	}
 	if (toR == r - 2 * i && toC == c)
 	{
@@ -900,7 +955,7 @@ function diagonalCheck( a,  kingR,  kingC,  p) {
 	//bottom left
 	r = kingR + 1;
 	c = kingC - 1;
-	while (inBound(r, c)) {
+	while (inBound(kingR,kingC,r, c)) {
 		var piece = a[r][c];
 		var DCH = diagonalCheckHelper(a, piece, p);
 		if (DCH == 1) {
@@ -952,8 +1007,8 @@ function kingCheck( a,  r,  c,  p) {
 		{
 			continue;
 		}
-		var piece = tolower(a[r + ri[i]][c + ci[i]]);
-		if (piece == 'k') {
+		var piece = (a[r + ri[i]][c + ci[i]]);
+		if ((piece == 'k'&&p==-1)||(piece=='K'&&p==1)) {
 			return true;
 		}
 	}
@@ -989,6 +1044,15 @@ function pawnCheck( a,  r,  c,  p) {
 		}
 	}
 	return false;
+}
+function squareAttacked(a,r,c,p){
+	var knc = knightCheck(a, r, c, p);
+	var sc = sideCheck(a, r, c, p);
+	var dc = diagonalCheck(a, r, c, p);
+	var pc = pawnCheck(a, r, c, p);
+	var kc = kingCheck(a, r, c, p);
+
+	return (knc || sc || dc || pc || kc);
 }
 function check( a,  p)
 {
@@ -1069,10 +1133,11 @@ Have a validate function
 
 */
 
-function outcome(p)
+function outcome(a,p)
 {
 	//0 = nothing, 1 = player p is checkmated, 2 = stalemate, 3 = insufficient material
 	var kingR, kingC;
+	kingR=kingC=-1;
 	for (var r = 0; r < ROW; r++)
 	{
 		for (var c = 0; c < COL; c++)
@@ -1097,7 +1162,7 @@ function outcome(p)
 	{
 		for (var c = 0; c < COL; c++)
 		{
-			var x = tolower(board[r][c]);
+			var x = tolower(a[r][c]);
 			if (x == 'q' || x == 'p' || x == 'r')
 			{
 				whitePoints += 100;
@@ -1105,7 +1170,7 @@ function outcome(p)
 			}
 			if (x == 'b' || x == 'n')
 			{
-				if (islower(board[r][c]))
+				if (islower(a[r][c]))
 				{
 					whitePoints++;
 				}
@@ -1120,30 +1185,31 @@ function outcome(p)
 			break;
 		}
 	}
+
 	if (whitePoints <= 1 && blackPoints <= 1)
 	{
 		//cout << "Insufficient Material\n";
 		return 3;
 	}
-	if (canMove(board, kingR, kingC, p))
-	{
-		return 0;
-	}
+
 	for (var r = 0; r < ROW; r++)
 	{
 		for (var c = 0; c < COL; c++)
 		{
-			if (p == 1 && islower(board[r][c]) && canMove(board, r, c, p))
+		
+		
+			if (p == 1 && islower(a[r][c]) && generateMoves(a,r,c,p).size>0)
 			{
 				return 0;
 			}
-			if (p == -1 && isupper(board[r][c]) && canMove(board, r, c, p))
+	
+			if (p == -1 && isupper(a[r][c]) && generateMoves(a,r,c,p).size>0)
 			{
 				return 0;
 			}
 		}
 	}
-	if (check(board, p))
+	if (check(a, p))
 		return 1;
 
 	return 2;
@@ -1313,8 +1379,14 @@ function generateMoves(a, r, c,  p) //generates all legal moves for the piece at
 					}
 
 				}
-				else if(1==0){
+				
+				else if(toupper(a[r][c]) == 'P' && epR != -1 && epC != -1 && toC == epC && toR == epR - p && r == epR && Math.abs(c - epC) == 1 && inBound(r, c, toR, toC)){
 					//en passant
+					basicMove(temp,r,c,toR,toC);
+					temp[epR][epC] = '.';
+					if(!check(temp,p)){
+						moves.add(str);
+					}
 				}
 				else{
 				basicMove(temp,r,c,toR,toC);
