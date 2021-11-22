@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@600&display=swap');
+*{
+    background-color:#25252A
+}
+.container{
+    display: flex;
+    flex-direction:column;
+    align-items: center;
+    text-align: center;
+    justify-content: space-evenly;
+    min-height: 50vh;
+   
+
+}
+.playGame{
+    font-family: 'Source Sans Pro', sans-serif;
+    width:300px;
+    height:100px;
+    border:3px solid purple;
+    color:white;
+    background-color:rgba(83, 76, 83, 0.37);
+    box-shadow: inset 0 0 0 0 purple;
+    transition: ease-out .6s;
+    font-size: 2rem;
+    outline: none;
+}
+
+.playGame:hover{
+    box-shadow: inset 300px 0 0 0 purple;
+    cursor:pointer;
+    font-size: 3rem;
+  
+}
+
+.selectMode{
+    font-family: 'Source Sans Pro', sans-serif;
+    width:150px;
+    height:30px;
+    border:3px solid purple;
+    color:white;
+    background-color:rgba(83, 76, 83, 0.37);
+    box-shadow: inset 0 0 0 0 purple;
+    transition: ease-out .6s;
+    font-size: 1rem;
+    outline: none;
+}
+
+.selectMode:hover{
+    box-shadow: inset 300px 0 0 0 purple;
+    cursor:pointer;
+  
+}
+
+.WhiteBlackRectangle{
+    width:250px;
+    height:200px;
+}

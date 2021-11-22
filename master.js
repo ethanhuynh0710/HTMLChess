@@ -1,19 +1,22 @@
-var ROW, COL, WIDTH, HEIGHT, BOARD_X, SCREEN_X, SCREEN_Y,BOARD_WIDTH,BOARD_HEIGHT,board,canvasX,canvasY;
-var turn, mouseX, mouseY;
+ var blackAI = true;
+ var whiteAI=!blackAI;
+ var playerVSAI=false;
+ var playerVSplayer = true;
+ var AIVSAI=false;
+ var ROW=8,COL=8;
+
+var WIDTH, HEIGHT, BOARD_X, SCREEN_X, SCREEN_Y,BOARD_WIDTH,BOARD_HEIGHT,board,canvasX,canvasY;
+var turn, mouseX, mouseY, whiteEval,blackEval;
+var material, AIMove;
 var numWhitePieces, numBlackPieces, wkMoved, bkMoved, rightwrMoved, rightbrMoved, leftwrMoved, leftbrMoved, epR, epC;
 /*
-extern map<char, int> graveyard;
-extern map<char, int> values;
-extern vector<char> uniquePieces;
-extern vector<vector<int>> AImoves;
+	turn,white/blackEval,numWhitePieces,numBlackPieces,wkMoved, bkMoved, rightwrMoved, rightbrMoved, leftwrMoved, leftbrMoved, epR, epC;
 */
-var whiteIsHuman;
-var blackIsHuman;
+
+
+
 
 document.addEventListener("click", processClick);
-
-ROW=8;
-COL=8;
 
 
 
@@ -26,38 +29,77 @@ initialize();
 drawBoard();
 drawPieces();
 
-
+if(playerVSAI || AIVSAI){
+	moveAI();
+}
+ 
 
 
 
 //GRAPHICS
-function processClick(event) {
-	//document.body.textContent =
-	 // "clientX: " + event.clientX +
-	  //" - clientY: " + event.clientY;
-	  
-	var x = event.clientX;
-	var y = event.clientY;
-
+function moveAI() {
+	if((turn==1&&whiteAI)||(turn==-1&&blackAI)||AIVSAI){
+		let obj = {
+			a: "null"
+		}
+		search(3,-99999999, 99999999,obj,3);
+		var v =obj.a.split('-');
+		for(var i=0;i<v.length;++i){
+			v[i]=parseInt(v[i]);
+		  }
+		  move(v[0],v[1],v[2],v[3]);
+		  drawBoard();
+		 drawPieces();
+	}
+	var repeater = setTimeout(moveAI, 0);
+   }
+function selectMove(x,y){
 	if(x<canvasX||y<canvasX||x>(canvasX + BOARD_WIDTH)||y>(canvasY+BOARD_HEIGHT)){
 		//Outside Board: deselect piece
 		mouseX=mouseY=-1;
+		return false;
 	}
 	else if(mouseX==-1){
 		//select piece
 		mouseX = x;
 		mouseY=y;
+		return false;
 	}
-	else{
-		//move
+	return true;
+}
+function processClick(event) {
+	var x = event.clientX;
+	var y = event.clientY;
+	  if(playerVSAI||playerVSplayer){
+		if((turn==1&&blackAI)||(turn==-1&&whiteAI)||playerVSplayer){
+			if(selectMove(x,y)){
+				//move
+			
+				var c = Math.floor((mouseX - canvasX) / BOARD_WIDTH * COL);
+				var r = Math.floor((mouseY - canvasY) / BOARD_HEIGHT * ROW);
+				var toC = Math.floor((x - canvasX) / BOARD_WIDTH * COL);
+				var toR = Math.floor((y - canvasY) / BOARD_HEIGHT * ROW);
+				
+				
+	
+					move(r,c,toR,toC);
+					drawBoard();
+				 	drawPieces();
+					 mouseX=mouseY=-1;
+				
+		
+				
+			}
+		}
+	  }
+	  
+	
 
-		var c = Math.floor((mouseX - canvasX) / BOARD_WIDTH * COL);
-		var r = Math.floor((mouseY - canvasY) / BOARD_HEIGHT * ROW);
-
-		var toC = Math.floor((x - canvasX) / BOARD_WIDTH * COL);
-		var toR = Math.floor((y - canvasY) / BOARD_HEIGHT * ROW);
-
-		var str = r+"-"+c+"-"+toR+"-"+toC;
+	
+	
+  }
+function move(r,c,toR,toC){
+	var str = r+"-"+c+"-"+toR+"-"+toC;
 		var piece = board[r][c];
 		if((turn==1&&isupper(piece))||(turn==-1&&islower(piece))){
 			mouseX=mouseY=-1;
@@ -65,10 +107,13 @@ function processClick(event) {
 		}
 		
 		var moves = generateMoves(board,r,c,turn);
-		console.log(moves);
+
 		if(moves.has(str)){
 			//should be move
 			var move = str.split('-');
+			for(var i=0;i<move.length;++i){
+				move[i]=parseInt(move[i]);
+			  }
 			if(tolower(board[move[0]][move[1]])=='k'&&Math.abs(move[1]-move[3])>1){
 				//castling right
 				
@@ -106,8 +151,13 @@ function processClick(event) {
 				basicMove(board,r,c,toR,toC);
 				board[epR][epC] = '.';
 				epR = -1;
-					epC = -1;
-
+				epC = -1;
+				if(turn==1){
+					blackEval-=100;
+				}
+				else{
+					whiteEval-=100;
+				}
 			}
 			else{
 				//Normal move
@@ -122,7 +172,26 @@ function processClick(event) {
 					epR = -1;
 					epC = -1;
 				}
+				if(board[toR][toC]!='.'){
+					if(turn==1){
+						//white captures a piece
+				
+						blackEval-=material.get(tolower(board[toR][toC]));
+					}
+					else{
+						whiteEval-=material.get(tolower(board[toR][toC]));
+					}
+				}
 				basicMove(board,r,c,toR,toC);
+				if(promote()){
+					if(turn==1){
+						whiteEval+=material.get(tolower(board[toR][toC]))-100;
+					}
+					else{
+						blackEval+=material.get(tolower(board[toR][toC]))-100;
+					}
+				}
+				
 				
 			}
 			var ending = outcome(board,-1*turn);
@@ -131,12 +200,12 @@ function processClick(event) {
 			if (turn == -1)
 			{
 
-				console.log("BLACK WINS");
+			//	console.log("BLACK WINS");
 			}
 			else
 			{
 
-				console.log("WHITE WINS");
+			//	console.log("WHITE WINS");
 
 			}
 
@@ -144,29 +213,23 @@ function processClick(event) {
 		else if (ending == 2)
 		{
 
-			console.log("STALEMATE");
+		//	console.log("STALEMATE");
 
 		}
 		else if (ending == 3)
 		{
-			console.log("DRAW BY INSUFFICIENT MATERIAL");
+		//	console.log("DRAW BY INSUFFICIENT MATERIAL");
 
 		}
 			turn*=-1;
+			
 	
-		drawBoard();
-		drawPieces();
-		mouseX=mouseY=-1;
+	
 		//OUTCOME
 		
 		
 		}
-		
-	}
-
-	console.log(x,y);
-  }
-  
+}
 function drawBoard(){
 	var canvas = document.getElementById("myCanvas");
 	
@@ -177,21 +240,26 @@ function drawBoard(){
 	{
 		for (var col = 0; col < COL; col++)
 		{
-
+			var tile;
 			//sf::RectangleShape rect(sf::Vector2f(WIDTH / COL, HEIGHT / ROW));
 			if ((row + col) % 2 == 0)
 			{
-				c.fillStyle = "#FFFFFF";
+				//white
+				tile = document.getElementById("WhiteTile1");
+				//c.fillStyle = "#FFFFFF";
 			}
 			else
 			{
-				c.fillStyle = "#27AE60";
+				//black
+				tile = document.getElementById("BlackTile1");
+				//c.fillStyle = "#27AE60";
 			}
 			var width = BOARD_WIDTH/COL;
 			var height = BOARD_HEIGHT/ROW;
 			var xCoord = (col / COL * BOARD_WIDTH);
 			var yCoord = (row / ROW * BOARD_HEIGHT);
-			c.fillRect(xCoord,yCoord,width,height);
+			c.drawImage(tile,xCoord,yCoord,width,height);
+			//c.fillRect(xCoord,yCoord,width,height);
 			
 		}
 	}
@@ -312,7 +380,11 @@ function fill(){
 			var pieceIndex = Math.ceil(Math.random()*4) % 4;
 			board[0][c] = pieces[pieceIndex].toUpperCase();
 			board[ROW - 1][c] = pieces[pieceIndex].toLowerCase();
+			whiteEval+=material.get(tolower(board[0][c]));
+			blackEval+=material.get(tolower(board[0][c]));
 		}
+		whiteEval+=100;
+		blackEval+=100;
 		board[1][c] = 'P';
 		board[ROW - 2][c] = 'p';
 		for (var r = 2; r < ROW - 2; r++)
@@ -325,6 +397,7 @@ function fill(){
 
 function fullFill()
 {
+
 	if (ROW <= 8)
 	{
 		fill();
@@ -348,6 +421,8 @@ function fullFill()
 				board[ROW - 1 - r][c] = pieces[pieceIndex].toLowerCase();
 				++numWhitePieces;
 				++numBlackPieces;
+				whiteEval+=material.get(tolower(board[r][c]));
+				blackEval+=material.get(tolower(board[r][c]));
 			}
 
 		}
@@ -358,6 +433,8 @@ function fullFill()
 	{
 		board[backline][c] = 'P';
 		board[ROW - 1 - backline][c] = 'p';
+		whiteEval+=100;
+		blackEval+=100;
 		++numWhitePieces;
 		++numBlackPieces;
 		for (var r = backline + 1; r < ROW - 1 - backline; r++)
@@ -373,6 +450,32 @@ function fullFill()
 
 function initialize()
 {
+	var mode = localStorage.something;
+	if(mode=="pvp"){
+        playerVSAI=false;
+        playerVSplayer=true;
+        AIVSAI=false;
+		whiteAI=blackAI=false;
+    }
+    else if(mode=="pva"){
+        playerVSAI=true;
+        playerVSplayer=false;
+        AIVSAI=false;
+        
+    }
+    else if(mode=="ava"){
+        playerVSAI=false;
+        playerVSplayer=false;
+        AIVSAI=true;
+		whiteAI=blackAI=false;
+    }
+	material = new Map();
+	material.set('p',100);
+	material.set('b',300);
+	material.set('n',300);
+	material.set('r',500);
+	material.set('q',900);
+	whiteEval=blackEval=0;
 	mouseX=mouseY=-1;
 	var canvas = document.getElementById("myCanvas");
 	  let rect = canvas.getBoundingClientRect();
@@ -399,19 +502,23 @@ function initialize()
             [ 'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p' ],
             [ 'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r' ]
                 ];
+				whiteEval=blackEval=3900;
+				
 /*
+				whiteEval=300;
+				blackEval = 500;
 				board = [
-					['R', '.', '.', '.', 'K', '.', '.', 'R'] ,
-					['P', 'P', 'P', '.', 'P', 'b', 'P', 'P'] ,
+					['K', '.', '.', 'R', '.', '.', '.', '.'] ,
+					['.', '.', '.', '.', '.', '.', '.', '.'] ,
+					['.','.','.','.','.','.','.','.'],
+					['.','.','.','n','.','.','.','.'],
 					['.','.','.','.','.','.','.','.'],
 					['.','.','.','.','.','.','.','.'],
-					['.','.','.','.','.','.','.','.'],
-					['.','.','.','.','.','.','.','.'],
-					[ 'p', 'p', '.', '.', 'p', '.', '.', 'p' ],
-					[ 'r', '.', '.', '.', 'k', 'q', '.', 'r' ]
+					[ '.', '.', '.', '.', '.', '.', '.', '.' ],
+					[ '.', '.', '.', '.', '.', '.', '.', 'k' ]
 						];
 
-	*/
+//	*/
 		//*/
 		/*
 			char classic[MAX_D][MAX_D] = {
@@ -1223,13 +1330,16 @@ function promote()
 		if (board[0][c] == 'p')
 		{
 			board[0][c] = 'q';
+			return true;
 		}
 		if (board[ROW - 1][c] == 'P')
 		{
 			board[ROW - 1][c] = 'Q';
+			return true;
 		}
 
 	}
+	return false;
 }
 function generateMoves(a, r, c,  p) //generates all legal moves for the piece at r,c
 {
@@ -1237,6 +1347,9 @@ function generateMoves(a, r, c,  p) //generates all legal moves for the piece at
 	//Generate all nonlegal moves and store them in ri and ci
 	//----------------------------------------------------------
 	var moves = new Set();
+	if(isupper(board[r][c])&&p==1||islower(board[r][c])&&p==-1){
+		return moves;
+	}
 	var ri = new Array();
 	var ci = new Array();
 	var piece = tolower(a[r][c]);
@@ -1409,6 +1522,20 @@ function generateMoves(a, r, c,  p) //generates all legal moves for the piece at
 	}
 	return moves;
 }
+function generateAllMoves(a,p){
+	var allMoves=new Set();
+	for(var r=0;r<ROW;++r){
+		for(var c=0;c<COL;++c){
+			if(a[r][c]!='.'){
+				var moves = generateMoves(a,r,c,p);
+				for (let item of moves){
+					allMoves.add(item);
+				}
+			}
+		}
+	}
+	return allMoves;
+}
 
 function basicMove(a,  r,  c,  toR,  toC)
 {
@@ -1419,4 +1546,104 @@ function basicMove(a,  r,  c,  toR,  toC)
 		//graveyard[arr[toR][toC]]++;
 	}
 	a[toR][toC] = piece;
+}
+
+//ENGINE
+
+function search( depth,  alpha,  beta,finalMove, firstDepth){
+	if(depth==0){
+		
+		var evaluation = (whiteEval-blackEval);
+		return evaluation;
+	}
+	//Evaluation = (whiteEval-blackEval) * turn
+	var moves = generateAllMoves(board,turn);
+	if(moves.size==0){
+		if(check(board,turn)){
+			return -9999999 * turn;
+		}
+		return 0;
+	}
+	var [bestMove] = moves;
+	if(turn==1){
+		var maxEval = -9999999;
+		for (let m of moves){
+			var v = m.split('-');
+		
+		for(var i=0;i<v.length;++i){
+			v[i]=parseInt(v[i]);
+		  }
+		var temp = clone(board);
+		//store all current state variables
+		var t,we,be,nw,nb,wkm, bkm, rwrm, rbrm, lwrm, lbrm, er, ec;
+		t=turn,we=whiteEval;be=blackEval,nw=numWhitePieces,nb=numBlackPieces,wkm=wkMoved,bkm=bkMoved,rwrm=rightwrMoved,rbrm=rightbrMoved,lwrm=leftwrMoved,lbrm=leftbrMoved,er=epR,ec=epR;
+		move((v[0]),(v[1]),(v[2]),(v[3]));
+		var evaluation = search(depth-1,alpha,beta,finalMove,firstDepth);
+		//undo
+		turn=t,whiteEval=we;blackEval=be,numWhitePieces=nw,numBlackPieces=nb,wkMoved=wkm,bkMoved=bkm,rightwrMoved=rwrm,rightbrMoved=rbrm,leftwrMoved=lwrm,leftbrMoved=lbrm,epR=er,epR=ec;
+		board=temp;
+		if(evaluation > maxEval){
+			maxEval = evaluation;
+			bestMove = m;
+		}
+		else if(evaluation==maxEval){
+			var rand = Math.floor(Math.random() * 100);
+			if(rand%10==0){
+				bestMove = m;
+			}
+
+		}
+		alpha = Math.max(alpha,evaluation);
+		if(beta<=alpha){
+			//break;
+		}
+		
+
+
+		}
+		finalMove.a=bestMove;
+		return maxEval;
+
+	}
+	else{
+		var minEval = 9999999;
+		for (let m of moves){
+			var v = m.split('-');
+		for(var i=0;i<v.length;++i){
+			v[i]=parseInt(v[i]);
+		  }
+		var temp = clone(board);
+		//store all current state variables
+		var t,we,be,nw,nb,wkm, bkm, rwrm, rbrm, lwrm, lbrm, er, ec;
+		t=turn,we=whiteEval;be=blackEval,nw=numWhitePieces,nb=numBlackPieces,wkm=wkMoved,bkm=bkMoved,rwrm=rightwrMoved,rbrm=rightbrMoved,lwrm=leftwrMoved,lbrm=leftbrMoved,er=epR,ec=epR;
+		move((v[0]),(v[1]),(v[2]),(v[3]));
+
+		
+		var evaluation = search(depth-1,alpha,beta,finalMove,firstDepth);
+
+		//undo
+		turn=t,whiteEval=we;blackEval=be,numWhitePieces=nw,numBlackPieces=nb,wkMoved=wkm,bkMoved=bkm,rightwrMoved=rwrm,rightbrMoved=rbrm,leftwrMoved=lwrm,leftbrMoved=lbrm,epR=er,epR=ec;
+		board=temp;
+		if(evaluation < minEval){
+			minEval = evaluation;
+			bestMove = m;
+		}
+		else if(evaluation==minEval){
+			var rand = Math.floor(Math.random() * 100);
+			if(rand%10==0){
+				bestMove = m;
+			}
+
+		}
+		beta = Math.min(beta,evaluation);
+		if(beta<=alpha){
+			//break;
+		}
+		
+
+
+		}
+		finalMove.a=bestMove;
+		return minEval;
+	}
 }
