@@ -4,7 +4,9 @@
  var playerVSplayer = true;
  var AIVSAI=false;
  var ROW=8,COL=8;
-
+ var time =0;
+var pieceMatrix, highlightedMoves;
+var canvas;
 var WIDTH, HEIGHT, BOARD_X, SCREEN_X, SCREEN_Y,BOARD_WIDTH,BOARD_HEIGHT,board,canvasX,canvasY;
 var turn, mouseX, mouseY, whiteEval,blackEval;
 var material, AIMove;
@@ -12,6 +14,91 @@ var numWhitePieces, numBlackPieces, wkMoved, bkMoved, rightwrMoved, rightbrMoved
 /*
 	turn,white/blackEval,numWhitePieces,numBlackPieces,wkMoved, bkMoved, rightwrMoved, rightbrMoved, leftwrMoved, leftbrMoved, epR, epC;
 */
+class Piece{
+	constructor(row,col,piece,sel){
+		this.row=row;
+		this.col=col;
+		this.xCoord = (this.col / COL * BOARD_WIDTH);
+		this.yCoord =  (this.row / ROW * BOARD_HEIGHT);
+		this.piece=piece;
+		this.selected=sel;
+		this.dx=.2;
+		this.dy=.2;
+		if(islower(this.piece)){
+			if(this.piece=='p'){
+				this.img = document.getElementById("WhitePawn");
+			}
+			else if(this.piece=='q'){
+				this.img = document.getElementById("WhiteQueen");
+			}
+			else if(this.piece=='b'){
+				this.img = document.getElementById("WhiteBishop");
+			}
+			else if(this.piece=='r'){
+				this.img = document.getElementById("WhiteRook");
+			}
+			else if(this.piece=='n'){
+				this.img = document.getElementById("WhiteKnight");
+			}
+			else if(this.piece=='k'){
+				this.img = document.getElementById("WhiteKing");
+			}
+		}
+		else if(isupper(this.piece)){
+			if(this.piece=='P'){
+				this.img = document.getElementById("BlackPawn");
+			}
+			else if(this.piece=='Q'){
+				this.img = document.getElementById("BlackQueen");
+			}
+			else if(this.piece=='B'){
+				this.img = document.getElementById("BlackBishop");
+			}
+			else if(this.piece=='R'){
+				this.img = document.getElementById("BlackRook");
+			}
+			else if(this.piece=='N'){
+				this.img = document.getElementById("BlackKnight");
+			}
+			else if(this.piece=='K'){
+				this.img = document.getElementById("BlackKing");
+			}
+		}
+	}
+	select(){
+		this.selected=true;
+	}
+	deselect(){
+		this.selected=false;
+	}
+	draw(c){
+		c.beginPath();
+		var width = BOARD_WIDTH/COL;
+		var height = BOARD_HEIGHT/ROW;
+		if(false&&this.selected){
+			//ANIMATE HOVER
+			this.xCoord+=this.dx;
+			this.yCoord+=this.dy;
+			let xCenter = (this.col / COL * BOARD_WIDTH);
+			let yCenter =  (this.row / ROW * BOARD_HEIGHT);
+			let len = 15;
+			let leftBorder = xCenter-len;
+			let rightBorder = xCenter+len;
+			let topBorder = yCenter - len;
+			let bottomBorder = yCenter + len;
+			if(this.xCoord<leftBorder || this.xCoord>rightBorder){
+				this.dx*=-1;
+			}
+			if(this.yCoord<topBorder || this.yCoord>bottomBorder){
+				this.dy*=-1;
+			}
+		}
+	
+		c.drawImage(this.img,this.xCoord,this.yCoord,width,height);
+		c.closePath();
+	}
+
+}
 
 
 
@@ -19,15 +106,9 @@ var numWhitePieces, numBlackPieces, wkMoved, bkMoved, rightwrMoved, rightbrMoved
 document.addEventListener("click", processClick);
 
 
-
-board = new Array(ROW);
-for (var i = 0; i < ROW; i++) {
-    board[i]=new Array(COL);
-  }
-
 initialize();
-drawBoard();
-drawPieces();
+updateScreen(true);
+
 
 if(playerVSAI || AIVSAI){
 	moveAI();
@@ -37,8 +118,116 @@ if(playerVSAI || AIVSAI){
 
 
 //GRAPHICS
+function oppositePieces(r1,c1,r2,c2){
+	let p1 = board[r1][c1];
+	let p2 = board[r2][c2];
+	return (isupper(p1)&&islower(p2))||(islower(p1)&&isupper(p2));
+}
+function highlightLegalMoves(row,col){
+	var moves = generateMoves(board,row,col,turn);
+	/*
+	1 = regular move (orange)
+	2 = piece capture (red)
+	3 = selected piece (green)
+	*/
+  highlightedMoves= [];
+  var radius = 0;
+  //each element of highlightedMoves is an array: [row,col,color,dist,radius]
+	highlightedMoves.push([row,col,3,0,radius]);
+	for (let item of moves){
+		var v =item.split('-');
+		for(var i=0;i<v.length;++i){
+			v[i]=parseInt(v[i]);
+		  }
+		var r = v[2];
+		var c = v[3];
+		let dist = Math.max(Math.abs(row-r),Math.abs(col-c));
+		if(board[r][c]!='.'&&oppositePieces(row,col,r,c)){
+			highlightedMoves.push([r,c,2,dist,radius]);
+		}
+		else{
+			highlightedMoves.push([r,c,1,dist,radius]);
+		}
+		
+	}
+	
+}
+function drawLegalMoves(){
+
+	var ctx = canvas.getContext("2d");
+	
+	for(let v of highlightedMoves){
+	ctx.beginPath();
+	let r=v[0],
+	c=v[1],
+	color=v[2],
+	dist=v[3],
+	radius=v[4];
+	let maxRadius=BOARD_WIDTH/COL/2;
+	if(radius<maxRadius){
+		//v[4]+=(.15)*(Math.max(ROW,COL)+1-dist);
+		//time = 50 = 1 second
+		if(time>=5*dist){
+			//v[4]+=1;
+		}
+		setTimeout(function() {
+			// Your code here
+			if(v[4]<maxRadius){
+				v[4]++;
+			}
+			
+		}, 1000*dist/Math.max(ROW,COL));
+		
+	}
+	var x = (c / COL * BOARD_WIDTH) + BOARD_WIDTH/COL/2,
+    y = (r / ROW * BOARD_HEIGHT)+ BOARD_HEIGHT/ROW/2;
+    // Radii of the white glow.
+    var innerRadius = radius/3;
+
+	
+	var gradient = ctx.createRadialGradient(x, y, innerRadius, x, y, radius);
+	var col;
+	if(color==1){
+		col='rgb(255, 200, 0,255)';
+		
+	}
+	else if(color==2){
+		col='rgb(255, 0, 0,255)';
+	}
+	else if(color==3){
+		col='rgb(130, 255, 0,255)';
+	}
+	gradient.addColorStop(0, col);
+	gradient.addColorStop(1, 'rgb(255,255,255,0)');
+
+	ctx.arc(x, y, radius, 0, 2 * Math.PI);
+	
+	ctx.fillStyle = gradient;
+	ctx.fill();
+	ctx.closePath();
+	}
+	
+}
+function updateScreen(animate){
+	var c = canvas.getContext("2d");
+	c.clearRect(0,0,c.width,c.height);
+	drawBoard();
+	drawLegalMoves();
+	drawPieces();
+	//console.log(time);
+	if(animate){
+		time++;
+		requestAnimationFrame(updateScreen);
+	}else{
+		time=0;
+		highlightedMoves=[];
+		cancelAnimationFrame(updateScreen);
+	}
+	
+}
 function moveAI() {
 	if((turn==1&&whiteAI)||(turn==-1&&blackAI)||AIVSAI){
+		time=0;
 		let obj = {
 			a: "null"
 		}
@@ -47,22 +236,62 @@ function moveAI() {
 		for(var i=0;i<v.length;++i){
 			v[i]=parseInt(v[i]);
 		  }
-		  move(v[0],v[1],v[2],v[3]);
-		  drawBoard();
-		 drawPieces();
+		  pieceMatrix[v[0]][v[1]].select();
+			highlightLegalMoves(v[0],v[1]);
+
+	
+		  setTimeout(
+			function(){
+				move(v[0],v[1],v[2],v[3]);
+			updatePieceMatrix();
+			updateScreen(false);
+			}, 
+			1000);
+		  
 	}
-	var repeater = setTimeout(moveAI, 0);
+	if(AIVSAI){
+		setTimeout(
+			function(){
+				moveAI();
+			}, 
+			1000);
+		
+	}
+	//var repeater = setTimeout(moveAI, 0);
    }
+function updatePieceMatrix(){
+	for(var row=0;row<ROW;++row){
+		for(var col=0;col<COL;++col){
+			let pieceObj = new Piece(row,col,board[row][col],false);
+			pieceMatrix[row][col]=pieceObj;
+		}
+	}
+
+}
 function selectMove(x,y){
+
+	var c = Math.floor((x - canvasX) / BOARD_WIDTH * COL);
+	var r = Math.floor((y - canvasY) / BOARD_HEIGHT * ROW);
+
 	if(x<canvasX||y<canvasX||x>(canvasX + BOARD_WIDTH)||y>(canvasY+BOARD_HEIGHT)){
 		//Outside Board: deselect piece
 		mouseX=mouseY=-1;
+		time=0;
 		return false;
 	}
 	else if(mouseX==-1){
 		//select piece
+		time=0;
+		if(!inBound(r,c,r,c)||board[r][c]=='.'){
+			mouseX=mouseY=-1;
+			return false;
+		}
+		pieceMatrix[r][c].select();
+		highlightLegalMoves(r,c);
 		mouseX = x;
 		mouseY=y;
+		
+
 		return false;
 	}
 	return true;
@@ -70,21 +299,27 @@ function selectMove(x,y){
 function processClick(event) {
 	var x = event.clientX;
 	var y = event.clientY;
+
 	  if(playerVSAI||playerVSplayer){
 		if((turn==1&&blackAI)||(turn==-1&&whiteAI)||playerVSplayer){
 			if(selectMove(x,y)){
 				//move
-			
 				var c = Math.floor((mouseX - canvasX) / BOARD_WIDTH * COL);
 				var r = Math.floor((mouseY - canvasY) / BOARD_HEIGHT * ROW);
 				var toC = Math.floor((x - canvasX) / BOARD_WIDTH * COL);
 				var toR = Math.floor((y - canvasY) / BOARD_HEIGHT * ROW);
-				
-				
 	
 					move(r,c,toR,toC);
-					drawBoard();
-				 	drawPieces();
+					updatePieceMatrix();
+					
+					updateScreen(false);
+
+					setTimeout(
+						function(){
+							moveAI();
+						}, 
+						1000);
+			
 					 mouseX=mouseY=-1;
 				
 		
@@ -231,7 +466,7 @@ function move(r,c,toR,toC){
 		}
 }
 function drawBoard(){
-	var canvas = document.getElementById("myCanvas");
+	
 	
 	var c = canvas.getContext("2d");
 	c.beginPath();
@@ -268,66 +503,21 @@ function drawBoard(){
 
 function drawPieces(){
 
-	var canvas = document.getElementById("myCanvas");
 	
 	var c = canvas.getContext("2d");
-	c.beginPath();
+
 
 	for(var row=0;row<ROW;++row){
 		for(var col=0;col<COL;++col){
 			var piece = board[row][col];
-			var width = BOARD_WIDTH/COL;
-			var height = BOARD_HEIGHT/ROW;
-			var xCoord = (col / COL * BOARD_WIDTH);
-			var yCoord = (row / ROW * BOARD_HEIGHT);
-			var img;
 			if(piece=='.'){
 				continue;
 			}
-			else if(islower(piece)){
-				if(piece=='p'){
-					img = document.getElementById("WhitePawn");
-				}
-				else if(piece=='q'){
-					img = document.getElementById("WhiteQueen");
-				}
-				else if(piece=='b'){
-					img = document.getElementById("WhiteBishop");
-				}
-				else if(piece=='r'){
-					img = document.getElementById("WhiteRook");
-				}
-				else if(piece=='n'){
-					img = document.getElementById("WhiteKnight");
-				}
-				else if(piece=='k'){
-					img = document.getElementById("WhiteKing");
-				}
-			}
-			else if(isupper(piece)){
-				if(piece=='P'){
-					img = document.getElementById("BlackPawn");
-				}
-				else if(piece=='Q'){
-					img = document.getElementById("BlackQueen");
-				}
-				else if(piece=='B'){
-					img = document.getElementById("BlackBishop");
-				}
-				else if(piece=='R'){
-					img = document.getElementById("BlackRook");
-				}
-				else if(piece=='N'){
-					img = document.getElementById("BlackKnight");
-				}
-				else if(piece=='K'){
-					img = document.getElementById("BlackKing");
-				}
-			}
-		c.drawImage(img,xCoord,yCoord,width,height);
+			
+			pieceMatrix[row][col].draw(c);
 		}
 	}
-	c.closePath();
+
 }
 
 
@@ -354,7 +544,7 @@ function print(a)
         var str = "";
 		for (var c = 0; c < COL; c++)
 		{
-			str+=board[r][c];
+			str+=a[r][c];
 		}
 		console.log(str);
 	}
@@ -450,6 +640,16 @@ function fullFill()
 
 function initialize()
 {
+	highlightedMoves=[];
+	BOARD_WIDTH = 500;
+	BOARD_HEIGHT = 500;
+	canvas = document.getElementById("myCanvas");
+	board = new Array(ROW);
+	pieceMatrix = new Array(ROW);
+for (var i = 0; i < ROW; i++) {
+    board[i]=new Array(COL);
+	pieceMatrix[i]=new Array(COL);
+  }
 	var mode = localStorage.something;
 	if(mode=="pvp"){
         playerVSAI=false;
@@ -477,7 +677,7 @@ function initialize()
 	material.set('q',900);
 	whiteEval=blackEval=0;
 	mouseX=mouseY=-1;
-	var canvas = document.getElementById("myCanvas");
+	
 	  let rect = canvas.getBoundingClientRect();
 	canvasX = rect.left;
 	canvasY=rect.top;
@@ -539,10 +739,15 @@ function initialize()
 	{
 		fullFill();
 	}
+	for(var row=0;row<ROW;++row){
+		for(var col=0;col<COL;++col){
+			let pieceObj = new Piece(row,col,board[row][col],false);
+			pieceMatrix[row][col]=pieceObj;
+		}
+	}
 
 
-	BOARD_WIDTH = 500;
-	BOARD_HEIGHT = 500;
+	
 
 
 }
