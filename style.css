@@ -7,8 +7,8 @@
     flex-direction:column;
     align-items: center;
     text-align: center;
-    justify-content: space-evenly;
-    min-height: 50vh;
+   justify-content: space-evenly;
+    min-height: 75vh;
    
 
 }
@@ -54,4 +54,11 @@
 .WhiteBlackRectangle{
     width:250px;
     height:200px;
+}
+
+.dimensions{
+    font-family: 'Source Sans Pro', sans-serif;
+    font-size: 3rem;
+    color:white;
+
 }

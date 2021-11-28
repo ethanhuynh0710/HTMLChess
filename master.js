@@ -3,8 +3,10 @@
  var playerVSAI=false;
  var playerVSplayer = true;
  var AIVSAI=false;
- var ROW=8,COL=8;
+ var ROW,COL;
  var time =0;
+ var animate = true;
+ var engineDepth = 2;
 var pieceMatrix, highlightedMoves;
 var canvas;
 var WIDTH, HEIGHT, BOARD_X, SCREEN_X, SCREEN_Y,BOARD_WIDTH,BOARD_HEIGHT,board,canvasX,canvasY;
@@ -15,15 +17,17 @@ var numWhitePieces, numBlackPieces, wkMoved, bkMoved, rightwrMoved, rightbrMoved
 	turn,white/blackEval,numWhitePieces,numBlackPieces,wkMoved, bkMoved, rightwrMoved, rightbrMoved, leftwrMoved, leftbrMoved, epR, epC;
 */
 class Piece{
-	constructor(row,col,piece,sel){
+	constructor(row,col,piece,st){
 		this.row=row;
 		this.col=col;
 		this.xCoord = (this.col / COL * BOARD_WIDTH);
 		this.yCoord =  (this.row / ROW * BOARD_HEIGHT);
 		this.piece=piece;
-		this.selected=sel;
+		this.state=st;
 		this.dx=.2;
 		this.dy=.2;
+		this.toRow=-1;
+		this.toCol=-1;
 		if(islower(this.piece)){
 			if(this.piece=='p'){
 				this.img = document.getElementById("WhitePawn");
@@ -65,17 +69,25 @@ class Piece{
 			}
 		}
 	}
-	select(){
-		this.selected=true;
+	moveTo(r,c){
+		this.state=2;
+		this.toRow=r;
+		this.toCol=c;
 	}
-	deselect(){
-		this.selected=false;
+	setState(i){
+		this.state=i;
 	}
 	draw(c){
 		c.beginPath();
 		var width = BOARD_WIDTH/COL;
 		var height = BOARD_HEIGHT/ROW;
-		if(false&&this.selected){
+		/*
+			state 0:static, no moving
+			state 1:hover after selection
+			state 2:make move
+			state 3:piece death
+		*/
+		if(false&&this.state==1){
 			//ANIMATE HOVER
 			this.xCoord+=this.dx;
 			this.yCoord+=this.dy;
@@ -93,7 +105,31 @@ class Piece{
 				this.dy*=-1;
 			}
 		}
-	
+		else if(this.state==2){
+			let toX = (this.toCol / COL * BOARD_WIDTH);
+			let toY =  (this.toRow / ROW * BOARD_HEIGHT);
+			let x = (this.col / COL * BOARD_WIDTH);
+			let y =  (this.row / ROW * BOARD_HEIGHT);
+			let xi = (toX-x)/30;
+			let yi = (toY-y)/30;
+			if((toX-x>0&&toX-this.xCoord>0)||(toX-x<0&&toX-this.xCoord<0)){
+				if(Math.abs(xi)>Math.abs(toX-this.xCoord)){
+					this.xCoord=toX;
+				}
+				else{
+					this.xCoord+=xi;
+				}
+				
+			}
+			if((toY-y>0&&toY-this.yCoord>0)||(toY-y<0&&toY-this.yCoord<0)){
+				if(Math.abs(yi)>Math.abs(toY-this.yCoord)){
+					this.yCoord=toY;
+				}
+				else{
+					this.yCoord+=yi;
+				}
+			}
+		}
 		c.drawImage(this.img,this.xCoord,this.yCoord,width,height);
 		c.closePath();
 	}
@@ -107,7 +143,7 @@ document.addEventListener("click", processClick);
 
 
 initialize();
-updateScreen(true);
+updateScreen();
 
 
 if(playerVSAI || AIVSAI){
@@ -118,10 +154,22 @@ if(playerVSAI || AIVSAI){
 
 
 //GRAPHICS
+function sleep(milliseconds) {
+	var start = new Date().getTime();
+	for (var i = 0; i < 1e7; i++) {
+	  if ((new Date().getTime() - start) > milliseconds){
+		break;
+	  }
+	}
+  }
+
 function oppositePieces(r1,c1,r2,c2){
 	let p1 = board[r1][c1];
 	let p2 = board[r2][c2];
 	return (isupper(p1)&&islower(p2))||(islower(p1)&&isupper(p2));
+}
+function correctPiece(piece){
+	return (islower(piece)&&turn==1)||(isupper(piece)&&turn==-1);
 }
 function highlightLegalMoves(row,col){
 	var moves = generateMoves(board,row,col,turn);
@@ -208,13 +256,12 @@ function drawLegalMoves(){
 	}
 	
 }
-function updateScreen(animate){
+function updateScreen(){
 	var c = canvas.getContext("2d");
 	c.clearRect(0,0,c.width,c.height);
 	drawBoard();
 	drawLegalMoves();
 	drawPieces();
-	//console.log(time);
 	if(animate){
 		time++;
 		requestAnimationFrame(updateScreen);
@@ -231,20 +278,19 @@ function moveAI() {
 		let obj = {
 			a: "null"
 		}
-		search(3,-99999999, 99999999,obj,3);
+		search(engineDepth,-99999999, 99999999,obj,3);
 		var v =obj.a.split('-');
 		for(var i=0;i<v.length;++i){
 			v[i]=parseInt(v[i]);
 		  }
-		  pieceMatrix[v[0]][v[1]].select();
+		  pieceMatrix[v[0]][v[1]].setState(1);
 			highlightLegalMoves(v[0],v[1]);
-
-	
+		  animate=true;
+		  updateScreen();
+		  
 		  setTimeout(
 			function(){
-				move(v[0],v[1],v[2],v[3]);
-			updatePieceMatrix();
-			updateScreen(false);
+			move(v[0],v[1],v[2],v[3],true);
 			}, 
 			1000);
 		  
@@ -254,7 +300,7 @@ function moveAI() {
 			function(){
 				moveAI();
 			}, 
-			1000);
+			2000);
 		
 	}
 	//var repeater = setTimeout(moveAI, 0);
@@ -262,7 +308,7 @@ function moveAI() {
 function updatePieceMatrix(){
 	for(var row=0;row<ROW;++row){
 		for(var col=0;col<COL;++col){
-			let pieceObj = new Piece(row,col,board[row][col],false);
+			let pieceObj = new Piece(row,col,board[row][col],0);
 			pieceMatrix[row][col]=pieceObj;
 		}
 	}
@@ -277,23 +323,30 @@ function selectMove(x,y){
 		//Outside Board: deselect piece
 		mouseX=mouseY=-1;
 		time=0;
+		animate=false;
+		updateScreen();
 		return false;
 	}
 	else if(mouseX==-1){
 		//select piece
 		time=0;
-		if(!inBound(r,c,r,c)||board[r][c]=='.'){
+		if(!inBound(r,c,r,c)||board[r][c]=='.'||!correctPiece(board[r][c])){
 			mouseX=mouseY=-1;
+			animate=false;
+			updateScreen();
 			return false;
 		}
-		pieceMatrix[r][c].select();
+		pieceMatrix[r][c].setState(1);
 		highlightLegalMoves(r,c);
+		animate=true;
+		updateScreen();
 		mouseX = x;
 		mouseY=y;
 		
 
 		return false;
 	}
+	highlightedMoves=[];
 	return true;
 }
 function processClick(event) {
@@ -308,20 +361,27 @@ function processClick(event) {
 				var r = Math.floor((mouseY - canvasY) / BOARD_HEIGHT * ROW);
 				var toC = Math.floor((x - canvasX) / BOARD_WIDTH * COL);
 				var toR = Math.floor((y - canvasY) / BOARD_HEIGHT * ROW);
-	
-					move(r,c,toR,toC);
-					updatePieceMatrix();
-					
-					updateScreen(false);
+				
+				
+				/*
+				calling move() alters the board, so when moveto is called, you are moving and drawing '.'
+				*/
 
+				move(r,c,toR,toC,true);
+				
+				setTimeout(
+					function(){
 					setTimeout(
 						function(){
 							moveAI();
 						}, 
 						1000);
 			
-					 mouseX=mouseY=-1;
-				
+					 
+					}, 
+					300);
+					
+					mouseX=mouseY=-1;
 		
 				
 			}
@@ -333,7 +393,7 @@ function processClick(event) {
 	
 	
   }
-function move(r,c,toR,toC){
+  function searchMove(r,c,toR,toC){
 	var str = r+"-"+c+"-"+toR+"-"+toC;
 		var piece = board[r][c];
 		if((turn==1&&isupper(piece))||(turn==-1&&islower(piece))){
@@ -465,6 +525,218 @@ function move(r,c,toR,toC){
 		
 		}
 }
+function move(r,c,toR,toC,animateMove){
+	highlightedMoves=[];
+	var delay = 250;
+	if(!animateMove){
+		delay=0;
+		console.log("y");
+	}
+	var str = r+"-"+c+"-"+toR+"-"+toC;
+		var piece = board[r][c];
+		if((turn==1&&isupper(piece))||(turn==-1&&islower(piece))){
+			mouseX=mouseY=-1;
+			return false;
+		}
+		
+		var moves = generateMoves(board,r,c,turn);
+
+		if(moves.has(str)){
+			//should be move
+			var move = str.split('-');
+			for(var i=0;i<move.length;++i){
+				move[i]=parseInt(move[i]);
+			  }
+			if(tolower(board[move[0]][move[1]])=='k'&&Math.abs(move[1]-move[3])>1){
+
+				if(turn==1){
+					wkMoved=true;
+				}
+				else{
+					bkMoved=true;
+				}
+				if(dir>0){
+					if(turn==1){
+						rightwrMoved=true;
+					}
+					else{
+						rightbrMoved=true;
+					}
+				}
+				else{
+					if(turn==1){
+						leftwrMoved=true;
+					}
+					else{
+						leftbrMoved=true;
+					}
+				}
+				var dir = move[3]-move[1];
+				
+				if(animateMove){
+					pieceMatrix[r][c].setState(2);
+				pieceMatrix[r][c].moveTo(toR,toC);
+				
+				if(dir>0){
+					pieceMatrix[r][COL-1].setState(2);
+					pieceMatrix[r][COL-1].moveTo(toR,c+1);
+				}
+				else{
+					pieceMatrix[r][0].setState(2);
+					pieceMatrix[r][0].moveTo(toR,c-1);
+				}
+					animate=true;
+					updateScreen();
+				}
+				
+
+				
+				setTimeout(function() {
+					basicMove(board,r,c,toR,toC);
+					if(dir>0){
+						basicMove(board,r,COL-1,toR,c+1);
+					}
+					else{
+						basicMove(board,r,0,toR,c-1);
+					}
+					if(animateMove){
+						updatePieceMatrix();
+						animate=false;
+						updateScreen();
+					}
+					
+				}
+
+				,delay);
+				
+
+			}
+			else if(toupper(board[r][c]) == 'P' && epR != -1 && epC != -1 && toC == epC && toR == epR - turn && r == epR && Math.abs(c - epC) == 1 && inBound(r, c, toR, toC)){
+				//En passant
+				
+				if(turn==1){
+					blackEval-=100;
+				}
+				else{
+					whiteEval-=100;
+				}
+
+				if(animateMove){
+					pieceMatrix[r][c].setState(2);
+					pieceMatrix[r][c].moveTo(toR,toC);
+					animate=true;
+					updateScreen();
+				}
+				
+				setTimeout(function() {
+					basicMove(board,r,c,toR,toC);
+					board[epR][epC] = '.';
+					epR = -1;
+					epC = -1;
+					if(animateMove){
+						updatePieceMatrix();
+						animate=false;
+						updateScreen();
+					}
+				} ,delay);
+				
+				
+			}
+			else{
+				//Normal move
+				updateCastleStatus(r,c);
+				if (toupper(board[r][c]) == 'P' && Math.abs(r - toR) == 2)
+				{
+					epR = toR;
+					epC = toC;
+				}
+				else
+				{
+					epR = -1;
+					epC = -1;
+				}
+				if(board[toR][toC]!='.'){
+					if(turn==1){
+						//white captures a piece
+				
+						blackEval-=material.get(tolower(board[toR][toC]));
+					}
+					else{
+						whiteEval-=material.get(tolower(board[toR][toC]));
+					}
+				}
+				if(animateMove){
+					pieceMatrix[r][c].setState(2);
+					pieceMatrix[r][c].moveTo(toR,toC);
+					animate=true;
+					updateScreen();
+				}
+				
+				setTimeout(function() {
+					basicMove(board,r,c,toR,toC);
+					if(promote()){
+						if(turn==1){
+							whiteEval+=material.get(tolower(board[toR][toC]))-100;
+						}
+						else{
+							blackEval+=material.get(tolower(board[toR][toC]))-100;
+						}
+					}
+					if(animateMove){
+						updatePieceMatrix();
+						animate=false;
+						updateScreen();
+					}
+					
+				
+					
+				}, delay);
+				
+				
+				
+			}
+			var ending = outcome(board,-1*turn);
+		if (ending == 1)
+		{
+			if (turn == -1)
+			{
+
+			//	console.log("BLACK WINS");
+			}
+			else
+			{
+
+			//	console.log("WHITE WINS");
+
+			}
+
+		}
+		else if (ending == 2)
+		{
+
+		//	console.log("STALEMATE");
+
+		}
+		else if (ending == 3)
+		{
+		//	console.log("DRAW BY INSUFFICIENT MATERIAL");
+
+		}
+			turn*=-1;
+			
+	
+	
+		//OUTCOME
+		return true;
+		
+		}
+		if(animateMove){
+			animate=false;
+			updateScreen();
+		}
+		
+		return false;
+}
 function drawBoard(){
 	
 	
@@ -481,20 +753,20 @@ function drawBoard(){
 			{
 				//white
 				tile = document.getElementById("WhiteTile1");
-				//c.fillStyle = "#FFFFFF";
+				c.fillStyle = "#FFFFFF";
 			}
 			else
 			{
 				//black
 				tile = document.getElementById("BlackTile1");
-				//c.fillStyle = "#27AE60";
+				c.fillStyle = "#4C8FFF";
 			}
 			var width = BOARD_WIDTH/COL;
 			var height = BOARD_HEIGHT/ROW;
 			var xCoord = (col / COL * BOARD_WIDTH);
 			var yCoord = (row / ROW * BOARD_HEIGHT);
-			c.drawImage(tile,xCoord,yCoord,width,height);
-			//c.fillRect(xCoord,yCoord,width,height);
+			//c.drawImage(tile,xCoord,yCoord,width,height);
+			c.fillRect(xCoord,yCoord,width,height);
 			
 		}
 	}
@@ -640,6 +912,14 @@ function fullFill()
 
 function initialize()
 {
+	ROW = localStorage.selectedRow;
+	COL=localStorage.selectedCol;
+	if(ROW<=8){
+		engineDepth=3;
+	}
+	else if(ROW<=15){
+		engineDepth=2;
+	}
 	highlightedMoves=[];
 	BOARD_WIDTH = 500;
 	BOARD_HEIGHT = 500;
@@ -741,7 +1021,7 @@ for (var i = 0; i < ROW; i++) {
 	}
 	for(var row=0;row<ROW;++row){
 		for(var col=0;col<COL;++col){
-			let pieceObj = new Piece(row,col,board[row][col],false);
+			let pieceObj = new Piece(row,col,board[row][col],0);
 			pieceMatrix[row][col]=pieceObj;
 		}
 	}
@@ -1782,7 +2062,7 @@ function search( depth,  alpha,  beta,finalMove, firstDepth){
 		//store all current state variables
 		var t,we,be,nw,nb,wkm, bkm, rwrm, rbrm, lwrm, lbrm, er, ec;
 		t=turn,we=whiteEval;be=blackEval,nw=numWhitePieces,nb=numBlackPieces,wkm=wkMoved,bkm=bkMoved,rwrm=rightwrMoved,rbrm=rightbrMoved,lwrm=leftwrMoved,lbrm=leftbrMoved,er=epR,ec=epR;
-		move((v[0]),(v[1]),(v[2]),(v[3]));
+		searchMove((v[0]),(v[1]),(v[2]),(v[3]));
 		var evaluation = search(depth-1,alpha,beta,finalMove,firstDepth);
 		//undo
 		turn=t,whiteEval=we;blackEval=be,numWhitePieces=nw,numBlackPieces=nb,wkMoved=wkm,bkMoved=bkm,rightwrMoved=rwrm,rightbrMoved=rbrm,leftwrMoved=lwrm,leftbrMoved=lbrm,epR=er,epR=ec;
@@ -1821,7 +2101,7 @@ function search( depth,  alpha,  beta,finalMove, firstDepth){
 		//store all current state variables
 		var t,we,be,nw,nb,wkm, bkm, rwrm, rbrm, lwrm, lbrm, er, ec;
 		t=turn,we=whiteEval;be=blackEval,nw=numWhitePieces,nb=numBlackPieces,wkm=wkMoved,bkm=bkMoved,rwrm=rightwrMoved,rbrm=rightbrMoved,lwrm=leftwrMoved,lbrm=leftbrMoved,er=epR,ec=epR;
-		move((v[0]),(v[1]),(v[2]),(v[3]));
+		searchMove((v[0]),(v[1]),(v[2]),(v[3]));
 
 		
 		var evaluation = search(depth-1,alpha,beta,finalMove,firstDepth);
