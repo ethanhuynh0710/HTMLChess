@@ -6,16 +6,18 @@
  var ROW,COL;
  var time =0;
  var animate = true;
- var engineDepth = 2;
+ var engineDepth = 1;
+ var positionsEvaluated=0;
 var pieceMatrix, highlightedMoves;
 var canvas;
 var WIDTH, HEIGHT, BOARD_X, SCREEN_X, SCREEN_Y,BOARD_WIDTH,BOARD_HEIGHT,board,canvasX,canvasY;
 var turn, mouseX, mouseY, whiteEval,blackEval;
-var material, AIMove;
+var material;
 var numWhitePieces, numBlackPieces, wkMoved, bkMoved, rightwrMoved, rightbrMoved, leftwrMoved, leftbrMoved, epR, epC;
 /*
 	turn,white/blackEval,numWhitePieces,numBlackPieces,wkMoved, bkMoved, rightwrMoved, rightbrMoved, leftwrMoved, leftbrMoved, epR, epC;
 */
+var animationToggle = true;
 class Piece{
 	constructor(row,col,piece,st){
 		this.row=row;
@@ -87,7 +89,10 @@ class Piece{
 			state 2:make move
 			state 3:piece death
 		*/
-		if(false&&this.state==1){
+		if(!animationToggle){
+			//do nothing
+		}
+		else if(false&&this.state==1){
 			//ANIMATE HOVER
 			this.xCoord+=this.dx;
 			this.yCoord+=this.dy;
@@ -212,11 +217,15 @@ function drawLegalMoves(){
 	dist=v[3],
 	radius=v[4];
 	let maxRadius=BOARD_WIDTH/COL/2;
+	if(!animationToggle){
+		radius=maxRadius;
+	}
 	if(radius<maxRadius){
 		//v[4]+=(.15)*(Math.max(ROW,COL)+1-dist);
 		//time = 50 = 1 second
-		if(time>=5*dist){
-			//v[4]+=1;
+		var delay = 1000*dist/Math.max(ROW,COL);
+		if(!animationToggle){
+			delay=0;
 		}
 		setTimeout(function() {
 			// Your code here
@@ -224,7 +233,7 @@ function drawLegalMoves(){
 				v[4]++;
 			}
 			
-		}, 1000*dist/Math.max(ROW,COL));
+		}, delay);
 		
 	}
 	var x = (c / COL * BOARD_WIDTH) + BOARD_WIDTH/COL/2,
@@ -262,7 +271,10 @@ function updateScreen(){
 	drawBoard();
 	drawLegalMoves();
 	drawPieces();
-	if(animate){
+	if(!animationToggle){
+		//nothing
+	}
+	else if(animate){
 		time++;
 		requestAnimationFrame(updateScreen);
 	}else{
@@ -273,6 +285,11 @@ function updateScreen(){
 	
 }
 function moveAI() {
+	positionsEvaluated=0;
+	var delay = 1000;
+	if(!animationToggle){
+		delay = 0;
+	}
 	if((turn==1&&whiteAI)||(turn==-1&&blackAI)||AIVSAI){
 		time=0;
 		let obj = {
@@ -292,15 +309,16 @@ function moveAI() {
 			function(){
 			move(v[0],v[1],v[2],v[3],true);
 			}, 
-			1000);
+			delay);
 		  
 	}
+	console.log(positionsEvaluated);
 	if(AIVSAI){
 		setTimeout(
 			function(){
 				moveAI();
 			}, 
-			2000);
+			2*delay+50);
 		
 	}
 	//var repeater = setTimeout(moveAI, 0);
@@ -318,8 +336,7 @@ function selectMove(x,y){
 
 	var c = Math.floor((x - canvasX) / BOARD_WIDTH * COL);
 	var r = Math.floor((y - canvasY) / BOARD_HEIGHT * ROW);
-
-	if(x<canvasX||y<canvasX||x>(canvasX + BOARD_WIDTH)||y>(canvasY+BOARD_HEIGHT)){
+	if(x<canvasX||y<canvasY||x>(canvasX + BOARD_WIDTH)||y>(canvasY+BOARD_HEIGHT)){
 		//Outside Board: deselect piece
 		mouseX=mouseY=-1;
 		time=0;
@@ -352,7 +369,8 @@ function selectMove(x,y){
 function processClick(event) {
 	var x = event.clientX;
 	var y = event.clientY;
-
+	
+	
 	  if(playerVSAI||playerVSplayer){
 		if((turn==1&&blackAI)||(turn==-1&&whiteAI)||playerVSplayer){
 			if(selectMove(x,y)){
@@ -368,18 +386,18 @@ function processClick(event) {
 				*/
 
 				move(r,c,toR,toC,true);
-				
-				setTimeout(
-					function(){
+				var delay = 1000;
+			if(!animationToggle){
+				delay=0;
+			}
+			
 					setTimeout(
 						function(){
 							moveAI();
 						}, 
-						1000);
+						delay+50);
 			
 					 
-					}, 
-					300);
 					
 					mouseX=mouseY=-1;
 		
@@ -528,9 +546,8 @@ function processClick(event) {
 function move(r,c,toR,toC,animateMove){
 	highlightedMoves=[];
 	var delay = 250;
-	if(!animateMove){
+	if(!animationToggle){
 		delay=0;
-		console.log("y");
 	}
 	var str = r+"-"+c+"-"+toR+"-"+toC;
 		var piece = board[r][c];
@@ -665,12 +682,11 @@ function move(r,c,toR,toC,animateMove){
 						whiteEval-=material.get(tolower(board[toR][toC]));
 					}
 				}
-				if(animateMove){
 					pieceMatrix[r][c].setState(2);
 					pieceMatrix[r][c].moveTo(toR,toC);
 					animate=true;
 					updateScreen();
-				}
+
 				
 				setTimeout(function() {
 					basicMove(board,r,c,toR,toC);
@@ -682,11 +698,9 @@ function move(r,c,toR,toC,animateMove){
 							blackEval+=material.get(tolower(board[toR][toC]))-100;
 						}
 					}
-					if(animateMove){
 						updatePieceMatrix();
 						animate=false;
 						updateScreen();
-					}
 					
 				
 					
@@ -730,10 +744,9 @@ function move(r,c,toR,toC,animateMove){
 		return true;
 		
 		}
-		if(animateMove){
 			animate=false;
 			updateScreen();
-		}
+		
 		
 		return false;
 }
@@ -759,7 +772,7 @@ function drawBoard(){
 			{
 				//black
 				tile = document.getElementById("BlackTile1");
-				c.fillStyle = "#4C8FFF";
+				c.fillStyle = "#800000";
 			}
 			var width = BOARD_WIDTH/COL;
 			var height = BOARD_HEIGHT/ROW;
@@ -912,18 +925,30 @@ function fullFill()
 
 function initialize()
 {
+	canvas = document.getElementById("myCanvas");
+	var ctx = canvas.getContext("2d");
+	ctx.canvas.height = .75*window.innerHeight;
+	ctx.canvas.width  = .75*window.innerHeight;
+	
+	BOARD_WIDTH = ctx.canvas.width;
+	BOARD_HEIGHT = ctx.canvas.height;
 	ROW = localStorage.selectedRow;
 	COL=localStorage.selectedCol;
-	if(ROW<=8){
+	if(ROW<=5){
+		engineDepth=4;
+	}
+	else if(ROW<=8){
 		engineDepth=3;
 	}
-	else if(ROW<=15){
+	else if(ROW<=12){
 		engineDepth=2;
 	}
+	else{
+		engineDepth=1;
+	}
 	highlightedMoves=[];
-	BOARD_WIDTH = 500;
-	BOARD_HEIGHT = 500;
-	canvas = document.getElementById("myCanvas");
+	
+	
 	board = new Array(ROW);
 	pieceMatrix = new Array(ROW);
 for (var i = 0; i < ROW; i++) {
@@ -2034,11 +2059,13 @@ function basicMove(a,  r,  c,  toR,  toC)
 }
 
 //ENGINE
-
 function search( depth,  alpha,  beta,finalMove, firstDepth){
 	if(depth==0){
 		
 		var evaluation = (whiteEval-blackEval);
+		positionsEvaluated++;
+		var str="Positions evaluated by AI "+" (depth = "+engineDepth+"): "+positionsEvaluated;
+		document.getElementById("positionsEvaluated").innerHTML = str; 
 		return evaluation;
 	}
 	//Evaluation = (whiteEval-blackEval) * turn

@@ -1,17 +1,19 @@
 //https://stackoverflow.com/questions/15455289/changing-variable-by-html-button
 
-var lockedDimension=false;
-var mode = 0;
-var BOARD_WIDTH = 500;
-var BOARD_HEIGHT = 500;
-var MAX_DIMENSION = 20;
-var MIN_DIMENSION = 4;
-var canvas = document.getElementById("myCanvas");
-localStorage.something = "pvp" ; 
-localStorage.selectedRow = 8; 
-localStorage.selectedCol = 8; 
+var lockedDimension;
+var mode;
+var BOARD_WIDTH;
+var BOARD_HEIGHT;
+var MAX_DIMENSION;
+var MIN_DIMENSION;
+var canvas;
+var prevLen;
+var board;
 
+
+initialize();
 drawBoard();
+drawPieces();
 drawRect(8,8);
 
 //document.getElementById("selectMode").addEventListener("click", selectMode);
@@ -31,7 +33,177 @@ function updateMode(){
         localStorage.something = "ava" ; 
     }
 }
+function print(a)
+{
+	for (var r = 0; r < MAX_DIMENSION; r++)
+	{
+        var str = "";
+		for (var c = 0; c < MAX_DIMENSION; c++)
+		{
+			str+=a[r][c];
+		}
+		console.log(str);
+	}
+}
 
+function fill(ROW,COL){
+    if(ROW==8){
+        board = [
+            ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R','.','.','.','.','.','.','.','.','.','.','.','.'] ,
+            ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P','.','.','.','.','.','.','.','.','.','.','.','.'] ,
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            [ 'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p','.','.','.','.','.','.','.','.' ,'.','.','.','.'],
+            [ 'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r','.','.','.','.','.','.','.','.' ,'.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+            ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.']
+                ];
+                return;
+    }
+	var randKingPosition = Math.ceil(Math.random()*COL) % COL;
+	board[0][randKingPosition] = 'K';
+	board[ROW - 1][randKingPosition] = 'k';
+	var pieces = [ 'r','n','b','q' ];
+	for (var c = 0; c < COL; c++)
+	{
+		if (board[0][c] != 'K')
+		{
+			var pieceIndex = Math.ceil(Math.random()*4) % 4;
+			board[0][c] = pieces[pieceIndex].toUpperCase();
+			board[ROW - 1][c] = pieces[pieceIndex].toLowerCase();
+		}
+		board[1][c] = 'P';
+		board[ROW - 2][c] = 'p';
+		for (var r = 2; r < ROW - 2; r++)
+		{
+			board[r][c] = '.';
+		}
+
+	}
+}
+function fullFill(ROW,COL)
+{
+    board = new Array(MAX_DIMENSION);
+    for(var i=0;i<MAX_DIMENSION;++i){
+        board[i]=new Array(MAX_DIMENSION);
+    }
+    for(var r=0;r<MAX_DIMENSION;++r){
+        for(var c=0;c<MAX_DIMENSION;++c){
+            board[r][c]='.';
+        }
+    }
+   
+	if (ROW <= 8)
+	{
+		fill(ROW,COL);
+		return;
+	}
+	var randKingPosition = Math.ceil(Math.random()*COL) % COL;
+	board[0][randKingPosition] = 'K';
+	board[ROW - 1][randKingPosition] = 'k';
+	var pieces = [ 'r','n','b','q' ];
+	//numNonPawnRows = (row-4)/2-1
+	var backline = Math.floor((ROW - 4) / 2 - 1);
+	for (var r = 0; r < backline; r++)
+	{
+		for (var c = 0; c < COL; c++)
+		{
+			//in conditional below, change r to 0 if you want empty space in front of king
+			if (board[r][c] != 'K')
+			{
+				var pieceIndex = Math.ceil(Math.random()*4) % 4;
+				board[r][c] = pieces[pieceIndex].toUpperCase();
+				board[ROW - 1 - r][c] = pieces[pieceIndex].toLowerCase();
+			}
+
+		}
+
+	}
+	///*
+	for (var c = 0; c < COL; c++)
+	{
+		board[backline][c] = 'P';
+		board[ROW - 1 - backline][c] = 'p';
+		for (var r = backline + 1; r < ROW - 1 - backline; r++)
+		{
+			board[r][c] = '.';
+		}
+	}
+	//*/
+	//print(a);
+
+}
+function drawPieces(){
+
+	
+	var c = canvas.getContext("2d");
+
+
+	for(var row=0;row<MAX_DIMENSION;++row){
+		for(var col=0;col<MAX_DIMENSION;++col){
+			var piece = board[row][col];
+			if(piece=='.'){
+				continue;
+			}
+            var img;
+            if(piece=='p'){
+                img = document.getElementById("WhitePawn");
+            }
+            else if(piece=='q'){
+                img = document.getElementById("WhiteQueen");
+            }
+            else if(piece=='b'){
+                img = document.getElementById("WhiteBishop");
+            }
+            else if(piece=='r'){
+                img = document.getElementById("WhiteRook");
+            }
+            else if(piece=='n'){
+                img = document.getElementById("WhiteKnight");
+            }
+            else if(piece=='k'){
+                img = document.getElementById("WhiteKing");
+            }
+            if(piece=='P'){
+                img = document.getElementById("BlackPawn");
+            }
+            else if(piece=='Q'){
+                img = document.getElementById("BlackQueen");
+            }
+            else if(piece=='B'){
+                img = document.getElementById("BlackBishop");
+            }
+            else if(piece=='R'){
+                img = document.getElementById("BlackRook");
+            }
+            else if(piece=='N'){
+                img = document.getElementById("BlackKnight");
+            }
+            else if(piece=='K'){
+                img = document.getElementById("BlackKing");
+            }
+			var width = BOARD_WIDTH/MAX_DIMENSION;
+		    var height = BOARD_HEIGHT/MAX_DIMENSION;
+            var xCoord = (col / MAX_DIMENSION * BOARD_WIDTH);
+		    var yCoord =  (row / MAX_DIMENSION * BOARD_HEIGHT);
+			c.drawImage(img,xCoord,yCoord,width,height);
+		    c.closePath();
+		}
+	}
+
+}
 function drawBoard(){
 	
 	
@@ -54,7 +226,7 @@ function drawBoard(){
 			{
 				//black
 				tile = document.getElementById("BlackTile1");
-				c.fillStyle = "#4C8FFF";
+				c.fillStyle = "#800000";
 			}
             
 			var width = BOARD_WIDTH/MAX_DIMENSION;
@@ -97,15 +269,23 @@ canvas.addEventListener("mousemove", function( event ) {
     if(!lockedDimension){
         var col = Math.floor((x) / BOARD_WIDTH * MAX_DIMENSION)+1;
         var row = Math.floor((y) / BOARD_HEIGHT * MAX_DIMENSION)+1;
-        c.clearRect(0,0,c.width,c.height);
-	    drawBoard();
         var len = Math.max(row,col);
-        drawRect(len,len);
-        var display = len+" x "+len;
-        if(len<MIN_DIMENSION){
-            display = "INVALID";
+        if(len!=prevLen){
+            c.clearRect(0,0,c.width,c.height);
+            drawBoard();
+            
+            fullFill(len,len);
+            drawPieces();
+           
+            drawRect(len,len);
+            var display = len+" x "+len;
+            if(len<MIN_DIMENSION){
+                display = "INVALID";
+            }
+            document.getElementById("dimensions").innerHTML = display;
+            prevLen=len;
         }
-        document.getElementById("dimensions").innerHTML = display;
+       
     }
   }, true);
 
@@ -140,4 +320,43 @@ canvas.addEventListener("mousemove", function( event ) {
         
     }
   }, false);
+  function initialize(){
+    canvas = document.getElementById("myCanvas");
+    var ctx = canvas.getContext("2d");
+	ctx.canvas.height = .7*window.innerHeight;
+	ctx.canvas.width  = .7*window.innerHeight;
+    lockedDimension=false;
+    mode = 0;
+    BOARD_WIDTH = ctx.canvas.width;
+    BOARD_HEIGHT = ctx.canvas.height;
+    MAX_DIMENSION = 20;
+    MIN_DIMENSION = 4;
+    
+    prevLen = -1;
+    localStorage.something = "pvp" ; 
+    localStorage.selectedRow = 8; 
+    localStorage.selectedCol = 8; 
+    board = [
+        ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R','.','.','.','.','.','.','.','.','.','.','.','.'] ,
+        ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P','.','.','.','.','.','.','.','.','.','.','.','.'] ,
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        [ 'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p','.','.','.','.','.','.','.','.' ,'.','.','.','.'],
+        [ 'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r','.','.','.','.','.','.','.','.' ,'.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.'],
+        ['.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.','.']
+            ];
+  }
 //export {blackAI,whiteAI,playerVSAI,playerVSplayer,AIVSAI}
