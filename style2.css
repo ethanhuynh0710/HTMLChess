@@ -2,7 +2,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@600&display=swap');
 *{
-    background-color:#25252A
+    background-color:#e0e5ec
 }
 
 .middle{
@@ -11,16 +11,22 @@
     align-items: center;
     text-align: center;
     justify-content: space-evenly;
-    min-height: 50vh;
+    margin: 0;
+    padding: 0;
 }
 
-
+.turn{
+    font-family: 'Lato', sans-serif;
+    font-weight: 1000;
+    font-size: x-large;
+}
 .statistics{
-    top:0px;
-    left:0px;
-    color:white;
+    font-family: 'Lato', sans-serif;
+    color:black;
+    font-weight: 750;
     font-size:large;
-    display: flex;
-    flex-direction:center;
-    align-items:center;
+    margin: 0;
 }
+
+p{/* collapse WS, preserve LB */
+  }

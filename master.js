@@ -1,4 +1,4 @@
- var blackAI = true;
+ var blackAI = false;
  var whiteAI=!blackAI;
  var playerVSAI=false;
  var playerVSplayer = true;
@@ -8,6 +8,7 @@
  var animate = true;
  var engineDepth = 1;
  var positionsEvaluated=0;
+ var gameOver = false;
 var pieceMatrix, highlightedMoves;
 var canvas;
 var WIDTH, HEIGHT, BOARD_X, SCREEN_X, SCREEN_Y,BOARD_WIDTH,BOARD_HEIGHT,board,canvasX,canvasY;
@@ -17,7 +18,7 @@ var numWhitePieces, numBlackPieces, wkMoved, bkMoved, rightwrMoved, rightbrMoved
 /*
 	turn,white/blackEval,numWhitePieces,numBlackPieces,wkMoved, bkMoved, rightwrMoved, rightbrMoved, leftwrMoved, leftbrMoved, epR, epC;
 */
-var animationToggle = true;
+var animationToggle;
 class Piece{
 	constructor(row,col,piece,st){
 		this.row=row;
@@ -225,7 +226,7 @@ function drawLegalMoves(){
 		//time = 50 = 1 second
 		var delay = 1000*dist/Math.max(ROW,COL);
 		if(!animationToggle){
-			delay=0;
+			delay=10;
 		}
 		setTimeout(function() {
 			// Your code here
@@ -285,10 +286,13 @@ function updateScreen(){
 	
 }
 function moveAI() {
+	if(gameOver){
+		return;
+	}
 	positionsEvaluated=0;
 	var delay = 1000;
 	if(!animationToggle){
-		delay = 0;
+		delay=10;
 	}
 	if((turn==1&&whiteAI)||(turn==-1&&blackAI)||AIVSAI){
 		time=0;
@@ -307,12 +311,11 @@ function moveAI() {
 		  
 		  setTimeout(
 			function(){
-			move(v[0],v[1],v[2],v[3],true);
+			move(v[0],v[1],v[2],v[3]);
 			}, 
 			delay);
 		  
 	}
-	console.log(positionsEvaluated);
 	if(AIVSAI){
 		setTimeout(
 			function(){
@@ -367,6 +370,9 @@ function selectMove(x,y){
 	return true;
 }
 function processClick(event) {
+	if(gameOver){
+		return;
+	}
 	var x = event.clientX;
 	var y = event.clientY;
 	
@@ -388,7 +394,7 @@ function processClick(event) {
 				move(r,c,toR,toC,true);
 				var delay = 1000;
 			if(!animationToggle){
-				delay=0;
+				delay=10;
 			}
 			
 					setTimeout(
@@ -544,10 +550,13 @@ function processClick(event) {
 		}
 }
 function move(r,c,toR,toC,animateMove){
+	if(gameOver){
+		return false;
+	}
 	highlightedMoves=[];
 	var delay = 250;
 	if(!animationToggle){
-		delay=0;
+		delay=10;
 	}
 	var str = r+"-"+c+"-"+toR+"-"+toC;
 		var piece = board[r][c];
@@ -709,34 +718,51 @@ function move(r,c,toR,toC,animateMove){
 				
 				
 			}
-			var ending = outcome(board,-1*turn);
-		if (ending == 1)
-		{
-			if (turn == -1)
-			{
+			
+			setTimeout(function(){
+				animate=false;
+				updateScreen();
+				setTimeout(function(){
+					endGame();
+					turn*=-1;
+					if(turn==1){
+						document.getElementById("turn").innerHTML="White to Move";
+					}
+					else{
+						document.getElementById("turn").innerHTML="Black to Move";
+					}
+					let evaluation = (whiteEval-blackEval);
+					let evalDisplay = "Static Material Evaluation: "+(evaluation)+" (";
+					if(evaluation==0){
+						evalDisplay+="neutral)";
+					}
+					else if(evaluation>0){
+						evalDisplay+="White is ";
+					}
+					else{
+						evalDisplay+="Black is ";
+					}
+					 evaluation = Math.abs(whiteEval-blackEval)/100;
+					if(evaluation!=0){
+						if(evaluation>=ROW){
+							evalDisplay+="heavily favored)"
+						}
+						else if(evaluation>=ROW/2){
+							evalDisplay+="favored)"
+						}
+						else{
+							evalDisplay+="slightly favored)";
+						}
+					}
+					document.getElementById("materialEvaluation").innerHTML=evalDisplay;
 
-			//	console.log("BLACK WINS");
-			}
-			else
-			{
 
-			//	console.log("WHITE WINS");
-
-			}
-
-		}
-		else if (ending == 2)
-		{
-
-		//	console.log("STALEMATE");
-
-		}
-		else if (ending == 3)
-		{
-		//	console.log("DRAW BY INSUFFICIENT MATERIAL");
-
-		}
-			turn*=-1;
+					
+				},50);
+					
+				
+				
+			},delay);
 			
 	
 	
@@ -749,6 +775,39 @@ function move(r,c,toR,toC,animateMove){
 		
 		
 		return false;
+}
+function endGame(){
+	var ending = outcome(board,-1*turn);
+			if(ending>0){
+				gameOver=true;
+			}
+		if (ending == 1)
+		{
+			
+			if (turn == -1)
+			{
+				alert("Black wins by Checkmate");
+			}
+			else
+			{
+
+				alert("White wins by Checkmate");
+
+			}
+			
+		}
+		else if (ending == 2)
+		{
+
+			alert("Stalemate");
+
+		}
+		else if (ending == 3)
+		{
+			alert("Draw by Insufficient Material");
+
+		}
+			
 }
 function drawBoard(){
 	
@@ -925,10 +984,20 @@ function fullFill()
 
 function initialize()
 {
+	if(localStorage.animationToggle=="true"){
+		animationToggle=true;
+	}
+	else{
+		animationToggle=false;
+	}
+	//fix:
+	animationToggle=true;
+	
+	console.log(animationToggle);
 	canvas = document.getElementById("myCanvas");
 	var ctx = canvas.getContext("2d");
-	ctx.canvas.height = .75*window.innerHeight;
-	ctx.canvas.width  = .75*window.innerHeight;
+	ctx.canvas.height = .7*window.innerHeight;
+	ctx.canvas.width  = .7*window.innerHeight;
 	
 	BOARD_WIDTH = ctx.canvas.width;
 	BOARD_HEIGHT = ctx.canvas.height;
@@ -2090,6 +2159,7 @@ function search( depth,  alpha,  beta,finalMove, firstDepth){
 		var t,we,be,nw,nb,wkm, bkm, rwrm, rbrm, lwrm, lbrm, er, ec;
 		t=turn,we=whiteEval;be=blackEval,nw=numWhitePieces,nb=numBlackPieces,wkm=wkMoved,bkm=bkMoved,rwrm=rightwrMoved,rbrm=rightbrMoved,lwrm=leftwrMoved,lbrm=leftbrMoved,er=epR,ec=epR;
 		searchMove((v[0]),(v[1]),(v[2]),(v[3]));
+		
 		var evaluation = search(depth-1,alpha,beta,finalMove,firstDepth);
 		//undo
 		turn=t,whiteEval=we;blackEval=be,numWhitePieces=nw,numBlackPieces=nb,wkMoved=wkm,bkMoved=bkm,rightwrMoved=rwrm,rightbrMoved=rbrm,leftwrMoved=lwrm,leftbrMoved=lbrm,epR=er,epR=ec;

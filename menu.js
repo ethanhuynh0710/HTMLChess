@@ -2,6 +2,7 @@
 
 var lockedDimension;
 var mode;
+var animationOn;
 var BOARD_WIDTH;
 var BOARD_HEIGHT;
 var MAX_DIMENSION;
@@ -12,12 +13,25 @@ var board;
 
 
 initialize();
+animationOn=0;
 drawBoard();
 drawPieces();
 drawRect(8,8);
 
 //document.getElementById("selectMode").addEventListener("click", selectMode);
 window.updateMode = updateMode;
+window.toggleAnimation=toggleAnimation;
+function toggleAnimation(){
+    animationOn++;
+    if(animationOn%2==0){
+        localStorage.animationToggle = true;
+        document.getElementById("animationToggle").innerHTML="Animations: On";
+    }
+    else{
+        localStorage.animationToggle = false;
+        document.getElementById("animationToggle").innerHTML="Animations: Off";
+    }
+}
 function updateMode(){
     mode++;
     if(mode%3==0){
@@ -321,6 +335,7 @@ canvas.addEventListener("mousemove", function( event ) {
     }
   }, false);
   function initialize(){
+    localStorage.animationToggle = true;
     canvas = document.getElementById("myCanvas");
     var ctx = canvas.getContext("2d");
 	ctx.canvas.height = .7*window.innerHeight;
